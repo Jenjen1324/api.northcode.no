@@ -113,7 +113,7 @@ keys are the same as when you call it without an argument
 
 @session_start();
 
-DEFINE('ROOT_URL','http://dev.northcode.no');
+DEFINE('ROOT_URL','http://api.northcode.no/v1');
 
 function post_call($url,$data) {
 	// use key 'http' even if you send the request to https://...
@@ -142,7 +142,7 @@ class nc_session
 		} else {
 			$user_ip = $_SERVER['REMOTE_ADDR'];
 			$user_agent = $_SERVER['HTTP_USER_AGENT'];
-			$str = post_call(ROOT_URL."/mysql/login.php?ajax",array("username" => $username, "password" => $password, "api_code" => API_CODE, "user_ip" => $user_ip, "user_agent" => $user_agent));
+			$str = post_call(ROOT_URL."/login.php?ajax",array("username" => $username, "password" => $password, "api_code" => API_CODE, "user_ip" => $user_ip, "user_agent" => $user_agent));
 			$logindata = json_decode($str,true);
 			if(isset($logindata['error'])) {
 				print_r($logindata);
@@ -155,7 +155,7 @@ class nc_session
 	}
 
 	public function get_user_info() {
-		$str = post_call(ROOT_URL."/api/session_info.php",$this->get_array());
+		$str = post_call(ROOT_URL."/session_info.php",$this->get_array());
 		$userdata = json_decode($str,true);
 		if (isset($userdata['error'])) {
 			print_r($userdata);
@@ -166,7 +166,7 @@ class nc_session
 	}
 
 	public function logout() {
-		$str = post_call(ROOT_URL."/mysql/logout.php?ajax",$this->get_array());
+		$str = post_call(ROOT_URL."/logout.php?ajax",$this->get_array());
 	}
 
 	
@@ -193,12 +193,12 @@ class nc_session
 	}
 
 	public function is_logged_in() {
-		$data = json_decode(post_call(ROOT_URL."/api/session_info.php?ajax&logincheck",$this->get_array()),true);
+		$data = json_decode(post_call(ROOT_URL."/session_info.php?ajax&logincheck",$this->get_array()),true);
 		return $data['active'];
 	}
 
 	public function edit_user($array_data) {
-		$data = json_decode(post_call(ROOT_URL."/api/edit_user.php",array_merge($this->get_array(),$array_data)),true);
+		$data = json_decode(post_call(ROOT_URL."/edit_user.php",array_merge($this->get_array(),$array_data)),true);
 		return $data;
 	}
 
@@ -215,16 +215,16 @@ class nc_api
 {
 	public static function get_user_info($id = "") {
 		if($id == "") {
-			return json_decode(post_call(ROOT_URL."/api/user_info.php",	array("api_code" => API_CODE)),true);
+			return json_decode(post_call(ROOT_URL."/user_info.php",	array("api_code" => API_CODE)),true);
 		} 
-		return json_decode(post_call(ROOT_URL."/api/user_info.php",	array("id" => $id , "api_code" => API_CODE)),true);
+		return json_decode(post_call(ROOT_URL."/user_info.php",	array("id" => $id , "api_code" => API_CODE)),true);
 	}
 
 	public static function get_user_info_by_uname($uname = "") {
 		if($uname == "") {
-			return json_decode(post_call(ROOT_URL."/api/user_info.php",	array("api_code" => API_CODE)),true);
+			return json_decode(post_call(ROOT_URL."/user_info.php",	array("api_code" => API_CODE)),true);
 		} 
-		return json_decode(post_call(ROOT_URL."/api/user_info.php",	array("username" => $uname , "api_code" => API_CODE)),true);
+		return json_decode(post_call(ROOT_URL."/user_info.php",	array("username" => $uname , "api_code" => API_CODE)),true);
 	}
 };
 
