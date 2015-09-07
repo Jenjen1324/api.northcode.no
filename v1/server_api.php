@@ -1,6 +1,6 @@
 <?php
 
-include_once("../mysql/connect.php");
+include_once("priv/connect.php");
 
 function check_api_access(&$api_data = null) {
 	if(!isset($_POST['api_code'])) {

@@ -1,10 +1,12 @@
 <?php 
-
+/*
+ * Legacy
 include_once("../utils.php");
 
 enable_errors();
+*/
 
-include_once("../mysql/connect.php");
+include_once("priv/connect.php");
 include_once("server_api.php");
 
 header("Content-Type: application/json");

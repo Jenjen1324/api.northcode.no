@@ -1,6 +1,6 @@
 <?php
 
-include_once("../mysql/connect.php");
+include_once("priv/connect.php");
 include_once("server_api.php");
 
 $ssid = 0;

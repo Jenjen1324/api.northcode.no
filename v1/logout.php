@@ -1,8 +1,8 @@
 <?php 
 session_start();
 
-include_once("connect.php");
-include_once("../api/server_api.php");
+include_once("priv/connect.php");
+include_once("server_api.php");
 
 $ajax = false;
 

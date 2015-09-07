@@ -1,8 +1,8 @@
 <?php
 
-include_once("../mysql/connect.php");
+include_once("priv/connect.php");
 include_once("server_api.php");
-include_once("../mysql/passwordhash.php");
+include_once("priv/passwordhash.php");
 
 class BindParam{ 
     private $values = array(), $types = ''; 

@@ -5,9 +5,9 @@ session_start();
 ini_set('display_errors', 1);
 error_reporting(E_ALL ^ E_NOTICE);
 
-include_once("connect.php");
-include_once("passwordhash.php");
-include_once("../api/server_api.php");
+include_once("priv/connect.php");
+include_once("priv/passwordhash.php");
+include_once("server_api.php");
 
 $username;
 $password;
