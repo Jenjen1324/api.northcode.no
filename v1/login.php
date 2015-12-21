@@ -5,9 +5,29 @@ session_start();
 ini_set('display_errors', 1);
 error_reporting(E_ALL ^ E_NOTICE);
 
+if (!isset($_SERVER["HTTP_HOST"])) {
+  parse_str($argv[1], $_GET);
+  parse_str($argv[1], $_POST);
+}
+
 include_once("priv/connect.php");
 include_once("priv/passwordhash.php");
 include_once("server_api.php");
+
+function updatePassword($uid, $password) {
+	global $mysql;
+
+	$options = [
+	    'cost' => 11,
+	    'salt' => mcrypt_create_iv(22, MCRYPT_DEV_URANDOM),
+	];
+	$pwd_h = password_hash($password, PASSWORD_BCRYPT, $options);
+
+	$stmt = $mysql->prepare("UPDATE users set password = ?, password_salt = ?, state = 3 where id = ?");
+	$stmt->bind_param('ssi', $pwd_h, $options['salt'], $uid);
+	$stmt->execute();
+	$stmt->close();
+}
 
 $username;
 $password;
@@ -36,86 +56,108 @@ if (isset($_GET['ajax'])) {
 }
 
 if ($username and $password) {
+	$login = false;
 
-	//COBALTVAULT COMPABILITY SCRIPT -- CHANGE MD5 PASSWORD TO SHA256
-	$cv_q = $mysql->prepare("SELECT password from users where username = ?");
-	$cv_q->bind_param("s",$username);
-	$cv_q->execute();
-	$cv_q->bind_result($cv_pass);
-	$cv_q->fetch();
-	$cv_q->close();
-	if (isValidMd5($cv_pass)) {
+	// Old Password hashing method check
+	$stmt = $mysql->prepare("SELECT state,password,password_salt,id from users where (username = ? or email = ?)");
+	$stmt->bind_param('ss', $username, $username);
+	$stmt->execute();
+	$stmt->bind_result($method, $password_h, $password_salt, $uid);
+	$stmt->fetch();
+	$stmt->close();
+
+	if(isValidMd5($password_h)) {
 		$cv_hash = cv_hash($password);
-		if($cv_pass == $cv_hash) {
-			$cv_uq = $mysql->prepare("UPDATE users set password = ? where username = ?");
-			$newpass = hashpass($password);
-			$cv_uq->bind_param('ss',$newpass,$username);
-			$cv_uq->execute();
-			$cv_uq->close();
+		if($password_h == $cv_hash) {
+			updatePassword($uid, $password);
+			$login = true;
+		}
+	} elseif ($method != 3) {
+		$nc_hash = hashpass($password);
+		if($password_h == $nc_hash) {
+			updatePassword($uid, $password);
+			$login = true;
+		}
+	} else {
+		$options = [
+		    'cost' => 11,
+		    'salt' => $password_salt,
+		];
+		$pwd_h = password_hash($password, PASSWORD_BCRYPT, $options);
+		if($password_h == $pwd_h) {
+			$login = true;
 		}
 	}
-	//END SCRIPT
 
+	if($login) {
+		$ip			= stripslashes($_SERVER['REMOTE_ADDR']);
+		$login_q 	= $mysql->prepare("SELECT users.id as id,username,email,rank,user_titles.title as title from users left join user_titles on user_titles.id = users.rank where users.id = ?");
+		$login_q->bind_param('i',$uid);
+		$login_q->execute();
+		$login_q->bind_result($id,$qusername,$qemail,$qrank,$qtitle);
+		$login_q->fetch();
+		$login_q->close();
 
-	$ip			= stripslashes($_SERVER['REMOTE_ADDR']);
+		if ($id and $qusername and $qemail) {
 
-	$login_q 	= $mysql->prepare("SELECT users.id as id,username,email,rank,user_titles.title as title from users left join user_titles on user_titles.id = users.rank where (username = ? or email = ?) and password = ?");
+			$active = 1;
+			$sessioncode = rand(1000,999999);
 
-	$password 	= hashpass($password);
+			$_SESSION['id']		 	= $id;
+			$_SESSION['ip']			= $ip;
+			$_SESSION['username'] 	= $qusername;
+			$_SESSION['email'] 		= $qemail;
+			$_SESSION['rank']		= $qrank;
+			$_SESSION['title']		= $qtitle;
+			$_SESSION['code']		= $sessioncode;
 
-	$login_q->bind_param('sss',$username,$username,$password);
+			$session_q = $mysql->prepare("INSERT into loginsessions (ip,uid,active,sessioncode,login_time) VALUES (?,?,?,?,NOW())");
 
-	$login_q->execute();
+			$session_q->bind_param('siii',$ip,$id,$active,$sessioncode);
 
-	$login_q->bind_result($id,$qusername,$qemail,$qrank,$qtitle);
+			$session_q->execute();
 
-	$login_q->fetch();
+			$sid = $session_q->insert_id;
 
-	$login_q->close();
+			$session_q->close();
 
-	if ($id and $qusername and $qemail) {
+			$_SESSION['ssid'] 	= $sid;
 
-		$active = 1;
-		$sessioncode = rand(1000,999999);
+			if ($ajax) {
+				echo json_encode(array("ssid" => $sid, "code" => $sessioncode));
+			} else {
+				header("Location: ../index.php");
+			}
+		}
+		else
+		{
+			// Legacy, should never happen but leaving it for now
+			if (!$ajax) {
+				echo "Login failed! Dafuq";
+				echo '<META http-equiv="refresh" content="3;URL=../index.php" />';
+			}
+			else
+			{
+				echo json_encode(array("error" => "Invalid credentials!"));
+			}
 
-		$_SESSION['id']		 	= $id;
-		$_SESSION['ip']			= $ip;
-		$_SESSION['username'] 	= $qusername;
-		$_SESSION['email'] 		= $qemail;
-		$_SESSION['rank']		= $qrank;
-		$_SESSION['title']		= $qtitle;
-		$_SESSION['code']		= $sessioncode;
-
-		$session_q = $mysql->prepare("INSERT into loginsessions (ip,uid,active,sessioncode,login_time) VALUES (?,?,?,?,NOW())");
-
-		$session_q->bind_param('siii',$ip,$id,$active,$sessioncode);
-
-		$session_q->execute();
-
-		$sid = $session_q->insert_id;
-
-		$session_q->close();
-
-		$_SESSION['ssid'] 	= $sid;
-
-		if ($ajax) {
-			echo json_encode(array("ssid" => $sid, "code" => $sessioncode));
-		} else {
-			header("Location: ../index.php");
 		}
 	}
 	else
 	{
 		if (!$ajax) {
-			echo "Login failed!";
+			echo "Login failed! Invalid Credentials";
 			echo '<META http-equiv="refresh" content="3;URL=../index.php" />';
 		}
 		else
 		{
 			echo json_encode(array("error" => "Invalid credentials!"));
 		}
-
 	}
+
+
+
+	
 } else {
 	if (!$ajax) {
 		echo "No data provided!";
