@@ -35,12 +35,17 @@ if (isset($_POST['id']) || isset($_POST['username'])) {
 	$q = $mysql->prepare($str);
 	$q->bind_param($p,$id);
 	$q->execute();
-	$q->bind_result($qid,$qusername,$qemail,$qimg,$qregistered,$qtitle,$qinfo);
+	$q->store_result();
 
-	$q->fetch();
-	# code...
-	$data = array("uid" => $qid,"username" => $qusername,"email" => $qemail,"img" => $qimg,"info" => $qinfo,"title" => $qtitle,"registered" => $qregistered);
+	if($q->num_rows < 1) {
+		$data = array("error" => array("msg" => "User not found!", "idm" => "invalid-user"));
+	} else {
 
+		$q->bind_result($qid,$qusername,$qemail,$qimg,$qregistered,$qtitle,$qinfo);
+		$q->fetch();	
+		$data = array("uid" => $qid,"username" => $qusername,"email" => $qemail,"img" => $qimg,"info" => $qinfo,"title" => $qtitle,"registered" => $qregistered);
+	}
+	$q->close();
 	
 	echo json_encode($data);
 } else {
